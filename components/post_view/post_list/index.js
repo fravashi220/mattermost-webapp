@@ -41,7 +41,7 @@ function makeMapStateToProps() {
         let atOldestPost = false;
         let formattedPostIds;
         let latestAriaLabelFunc;
-        const lastViewedAt = state.views.channel.lastChannelViewTime[ownProps.channelId];
+        const lastViewedAt = state.views.channel.newMessagesAtByChannel[ownProps.channelId];
 
         if (ownProps.match.params.postid) {
             chunk = getPostsChunkAroundPost(state, ownProps.match.params.postid, ownProps.channelId);

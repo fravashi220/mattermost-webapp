@@ -47,9 +47,31 @@ function lastChannelViewTime(state = {}, action) {
         return state;
     }
 
+    default:
+        return state;
+    }
+}
+
+// newMessagesAtByChannel is the position of the New Messages line in the channel.
+function newMessagesAtByChannel(state = {}, action) {
+    switch (action.type) {
+    case ActionTypes.SELECT_CHANNEL_WITH_MEMBER: {
+        // Set the position of the New Messages line when switching to a channel
+        const channelId = action.data;
+
+        return {
+            ...state,
+            [channelId]: action.member.last_viewed_at,
+        };
+    }
     case ActionTypes.POST_UNREAD_SUCCESS: {
-        const data = action.data;
-        return {...state, [data.channelId]: data.lastViewedAt};
+        // Set the position of the New Messages line in response to Mark as Unread
+        const {channelId, lastViewedAt} = action.data;
+
+        return {
+            ...state,
+            [channelId]: lastViewedAt,
+        };
     }
 
     default:
@@ -144,6 +166,7 @@ function lastGetPosts(state = {}, action) {
 export default combineReducers({
     postVisibility,
     lastChannelViewTime,
+    newMessagesAtByChannel,
     loadingPosts,
     focusedPostId,
     mobileView,
