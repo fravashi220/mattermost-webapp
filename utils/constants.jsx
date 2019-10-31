@@ -180,6 +180,7 @@ export const ActionTypes = keyMirror({
     UPDATE_ACTIVE_SECTION: null,
 
     POST_UNREAD_SUCCESS: null,
+    UPDATE_NEW_MESSAGES_AT: null,
 });
 
 export const PostRequestTypes = keyMirror({

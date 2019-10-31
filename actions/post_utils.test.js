@@ -8,7 +8,7 @@ import {receivedNewPost} from 'mattermost-redux/actions/posts';
 import {Posts} from 'mattermost-redux/constants';
 
 import * as PostActionsUtils from 'actions/post_utils';
-import {Constants} from 'utils/constants';
+import {ActionTypes, Constants} from 'utils/constants';
 
 const mockStore = configureStore([thunk]);
 
@@ -340,5 +340,208 @@ describe('actions/post_utils', () => {
                 args: [undefined, channelId, undefined],
             }]);
         });
+    });
+});
+
+describe('moveNewMessagesLineForNewPost', () => {
+    const channelId = 'channelId';
+    const currentUserId = 'currentUserId';
+
+    const initialState = {
+        entities: {
+            posts: {
+                posts: {},
+                postsInChannel: {
+                    channelId: [],
+                },
+            },
+            users: {
+                currentUserId,
+            },
+        },
+        views: {
+            channel: {
+                newMessagesAt: 1000,
+            },
+        },
+    };
+
+    test('should move the new messages line if it was at the bottom of the channel', async () => {
+        const post1 = {id: 'post1', channel_id: channelId, user_id: currentUserId, create_at: 500};
+        const store = await mockStore({
+            ...initialState,
+            entities: {
+                ...initialState.entities,
+                posts: {
+                    posts: {post1},
+                    postsInChannel: {
+                        channelId: [{
+                            order: [post1.id],
+                            recent: true,
+                        }],
+                    },
+                },
+            },
+        });
+
+        store.dispatch(PostActionsUtils.moveNewMessagesLineForNewPost({
+            user_id: currentUserId,
+            channel_id: channelId,
+            create_at: 2000,
+        }));
+
+        expect(store.getActions()).toEqual([{
+            type: ActionTypes.UPDATE_NEW_MESSAGES_AT,
+            data: {
+                channelId,
+                newMessagesAt: 2000,
+            },
+        }]);
+    });
+
+    test('should not move the new messages line if it is before a post made by another user', async () => {
+        const post1 = {id: 'post1', channel_id: channelId, user_id: 'anotherUser', create_at: 1500};
+        const store = await mockStore({
+            ...initialState,
+            entities: {
+                ...initialState.entities,
+                posts: {
+                    posts: {post1},
+                    postsInChannel: {
+                        channelId: [{
+                            order: [post1.id],
+                            recent: true,
+                        }],
+                    },
+                },
+            },
+        });
+
+        store.dispatch(PostActionsUtils.moveNewMessagesLineForNewPost({
+            user_id: currentUserId,
+            channel_id: channelId,
+            create_at: 2000,
+        }));
+
+        expect(store.getActions()).toEqual([]);
+    });
+
+    test('should not move the new messages line if it is before a post made by the current user', async () => {
+        const post1 = {id: 'post1', channel_id: channelId, user_id: currentUserId, create_at: 1500};
+        const store = await mockStore({
+            ...initialState,
+            entities: {
+                ...initialState.entities,
+                posts: {
+                    posts: {post1},
+                    postsInChannel: {
+                        channelId: [{
+                            order: [post1.id],
+                            recent: true,
+                        }],
+                    },
+                },
+            },
+        });
+
+        store.dispatch(PostActionsUtils.moveNewMessagesLineForNewPost({
+            user_id: currentUserId,
+            channel_id: channelId,
+            create_at: 2000,
+        }));
+
+        expect(store.getActions()).toEqual([]);
+    });
+
+    test('should not move the new messages line for a post from another user', async () => {
+        const post1 = {id: 'post1', channel_id: channelId, user_id: currentUserId, create_at: 500};
+        const store = await mockStore({
+            ...initialState,
+            entities: {
+                ...initialState.entities,
+                posts: {
+                    posts: {post1},
+                    postsInChannel: {
+                        channelId: [{
+                            order: [post1.id],
+                            recent: true,
+                        }],
+                    },
+                },
+            },
+        });
+
+        store.dispatch(PostActionsUtils.moveNewMessagesLineForNewPost({
+            user_id: 'anotherUser',
+            channel_id: channelId,
+            create_at: 2000,
+        }));
+
+        expect(store.getActions()).toEqual([]);
+    });
+
+    test('should not move the new messages line for a post from a webhook', async () => {
+        const post1 = {id: 'post1', channel_id: channelId, user_id: currentUserId, create_at: 500};
+        const store = await mockStore({
+            ...initialState,
+            entities: {
+                ...initialState.entities,
+                posts: {
+                    posts: {post1},
+                    postsInChannel: {
+                        channelId: [{
+                            order: [post1.id],
+                            recent: true,
+                        }],
+                    },
+                },
+            },
+        });
+
+        store.dispatch(PostActionsUtils.moveNewMessagesLineForNewPost({
+            user_id: currentUserId,
+            channel_id: channelId,
+            create_at: 2000,
+            props: {
+                from_webhook: 'true',
+            },
+        }));
+
+        expect(store.getActions()).toEqual([]);
+    });
+
+    test('should do nothing without any posts', async () => {
+        const store = await mockStore(initialState);
+
+        store.dispatch(PostActionsUtils.moveNewMessagesLineForNewPost({
+            channel_id: channelId,
+        }));
+
+        expect(store.getActions()).toEqual([]);
+    });
+
+    test('should do nothing without recent posts', async () => {
+        const post1 = {id: 'post1', channel_id: channelId, user_id: currentUserId, create_at: 500};
+        const store = await mockStore({
+            ...initialState,
+            entities: {
+                ...initialState.entities,
+                posts: {
+                    posts: {post1},
+                    postsInChannel: {
+                        channelId: [{
+                            order: [post1.id],
+                            recent: false,
+                        }],
+                    },
+                },
+            },
+        });
+
+        store.dispatch(PostActionsUtils.moveNewMessagesLineForNewPost({
+            channel_id: channelId,
+        }));
+
+        expect(store.getActions()).toEqual([]);
     });
 });

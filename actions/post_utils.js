@@ -73,6 +73,8 @@ export function lastPostActions(post, websocketMessageProps) {
         dispatch(setChannelReadAndView(post, websocketMessageProps));
 
         dispatch(sendDesktopNotification(post, websocketMessageProps));
+
+        dispatch(moveNewMessagesLineForNewPost(post));
     };
 }
 
@@ -108,5 +110,41 @@ export function setChannelReadAndView(post, websocketMessageProps) {
         } else {
             dispatch(markChannelAsUnread(websocketMessageProps.team_id, post.channel_id, websocketMessageProps.mentions));
         }
+    };
+}
+
+// moveNewMessagesLineForNewPost updates the position of the new messages line to be below the newly created post
+// if the line was previously at the bottom of the channel and the post was made by the current user.
+export function moveNewMessagesLineForNewPost(newPost) {
+    return (dispatch, getState) => {
+        const state = getState();
+        const currentUserId = getCurrentUserId(state);
+
+        if (newPost.user_id !== currentUserId || (newPost.props && newPost.props.from_webhook === 'true')) {
+            // This post isn't from the current user, so we should show the New Messages line
+            return;
+        }
+
+        const recent = PostSelectors.getRecentPostsChunkInChannel(state, newPost.channel_id);
+        if (!recent) {
+            // We don't know if the user is at the bottom of the channel, so we can't move the New Messages line
+            return;
+        }
+
+        const allPosts = PostSelectors.getAllPosts(state);
+        const newMessagesAt = state.views.channel.newMessagesAt;
+
+        const mostRecentPost = allPosts[recent.order[0]];
+        if (mostRecentPost.create_at >= newMessagesAt) {
+            return;
+        }
+
+        dispatch({
+            type: ActionTypes.UPDATE_NEW_MESSAGES_AT,
+            data: {
+                channelId: newPost.channel_id,
+                newMessagesAt: newPost.create_at,
+            },
+        });
     };
 }
